@@ -1,0 +1,14 @@
+{
+  "name": "crud-api",
+  "version": "1.0.0",
+  "description": "ServerlessCrudApi",
+  "main": "crud.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vivien Adnot",
+  "license": "ISC",
+  "dependencies": {
+    "uuid": "^8.3.2"
+  }
+}
