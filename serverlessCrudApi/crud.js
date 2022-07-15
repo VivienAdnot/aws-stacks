@@ -1,8 +1,9 @@
+const Log = require('@dazn/lambda-powertools-logger')
 const db = require('./db');
 
 const statusCodes = {
   BAD_PARAMETERS: 400,
-  CREATED: 201,
+  CREATED_OR_UPDATED: 201, // in http strict mode, updated should have a separate code
   SUCCESS: 200,
   DELETED: 204,
 }
@@ -14,14 +15,34 @@ const headers = {
 
 const createOrUpdate = async (event) => {
   let body;
-  let statusCode = statusCodes.CREATED;
+  let statusCode = statusCodes.CREATED_OR_UPDATED;
+
+  // parse json
+  let item;
+  try {
+    item = JSON.parse(event.body);
+  } catch (jsonParseError) {
+    statusCode = statusCodes.BAD_PARAMETERS;
+    const errorMessage = 'Could not json parse body'
+    Log.error('createOrUpdate/error', { query: event.body }, new Error(errorMessage));
+    body = errorMessage;
+    return {
+      statusCode,
+      body,
+      headers
+    };
+  }
 
   try {
-    const item = JSON.parse(event.body);
-    body = await db.store(item);
-    console.log('create/new item stored', body);
+    const itemCreated = await db.store(item);
+    Log.info('createOrUpdate/new item stored', {
+      query: { item },
+      data: itemCreated,
+      context: { statusCode }
+    });
+    body = itemCreated;
   } catch (err) {
-    console.error('create/error', err);
+    Log.error('createOrUpdate/error', { query: item}, err);
     statusCode = statusCodes.BAD_PARAMETERS;
     body = err.message;
   } finally {
@@ -40,10 +61,14 @@ const getAll = async () => {
   let statusCode = statusCodes.SUCCESS;
 
   try {
-    body = await db.list();
-    console.log('getAll/items', body);
+    const allItems = await db.list();
+    Log.info('getAll/all items', {
+      data: allItems,
+      context: { statusCode }
+    });
+    body = allItems;
   } catch (err) {
-    console.error('create/error', err);
+    Log.error('getAll/error', err);
     statusCode = statusCodes.BAD_PARAMETERS;
     body = err.message;
   } finally {
@@ -63,10 +88,15 @@ const getById = async (event) => {
   let statusCode = statusCodes.SUCCESS;
 
   try {
-    body = await db.getById(itemId);
-    console.log('getById/result', itemId, body);
+    const itemFound = await db.getById(itemId);
+    Log.info('getById/item found', {
+      query: { itemId },
+      data: itemFound,
+      context: { statusCode }
+    });
+    body = itemFound;
   } catch (err) {
-    console.error('getById/error', itemId, err);
+    Log.error('getById/error', { query: itemId }, err);
     statusCode = statusCodes.BAD_PARAMETERS;
     body = err.message;
   } finally {
@@ -86,10 +116,15 @@ const deleteById = async (event) => {
   let statusCode = statusCodes.DELETED;
 
   try {
-    body = await db.deleteById(itemId);
-    console.log('deleteById/result', itemId, body);
+    const itemDeletedInfo = await db.deleteById(itemId);
+    Log.info('deleteById/result', {
+      query: { itemId },
+      data: itemDeletedInfo,
+      context: { statusCode }
+    });
+    body = itemDeletedInfo
   } catch (err) {
-    console.error('deleteById/error', itemId, err);
+    Log.error('deleteById/error', { query: itemId }, err);
     statusCode = statusCodes.BAD_PARAMETERS;
     body = err.message;
   } finally {
